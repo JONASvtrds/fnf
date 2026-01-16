@@ -2,605 +2,725 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>FNF Online P2P - PeerJS</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoDash 2.2 Co-op Platformer</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root {
-            --bg-color: #1a1a1a;
-            --note-left: #c24b99;
-            --note-down: #00ffff;
-            --note-up: #12fa05;
-            --note-right: #f9393f;
-        }
-
         body {
             margin: 0;
-            background-color: var(--bg-color);
-            overflow: hidden;
-            font-family: 'Arial Black', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            background-color: #0a0a0a;
             color: white;
-            user-select: none;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
         }
-
+        
         #game-container {
             position: relative;
-            width: 1280px;
-            height: 720px;
-            background: linear-gradient(to bottom, #333, #000);
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            border: 4px solid #fff;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
         }
 
-        canvas { display: block; width: 100%; height: 100%; }
+        canvas {
+            border: 3px solid #333;
+            background: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d); /* Sunset Gradient */
+            display: block;
+        }
 
-        #ui-layer {
+        /* UI Overlay */
+        #ui {
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            display: flex; flex-direction: column; align-items: center;
-        }
-
-        .score-text {
-            margin-top: 20px;
-            font-size: 24px;
-            text-shadow: 2px 2px 0 #000;
-            display: flex;
-            gap: 50px;
-        }
-
-        .p1-score { color: #31b0d1; }
-        .p2-score { color: #af66ce; }
-
-        /* ESTILO DO MENU ONLINE */
-        #lobby-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 20;
-            text-align: center;
-        }
-
-        .lobby-box {
-            background: #222;
-            padding: 40px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
             border-radius: 15px;
-            border: 2px solid #555;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 400px;
-        }
-
-        input {
-            padding: 15px;
-            font-size: 18px;
             text-align: center;
-            border-radius: 5px;
-            border: none;
+            border: 2px solid #00ffff;
+            min-width: 300px;
+            z-index: 10;
         }
 
+        h1 { margin: 0 0 20px 0; font-style: italic; letter-spacing: 2px; text-shadow: 2px 2px #ff0055; }
+        
         button {
-            padding: 15px;
-            font-size: 20px;
-            border: none;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
             cursor: pointer;
-            font-family: inherit;
-            color: black;
-            font-weight: bold;
-            text-transform: uppercase;
+            border: none;
             border-radius: 5px;
-            transition: transform 0.1s;
+            font-weight: bold;
+            font-size: 16px;
+            text-transform: uppercase;
+            transition: 0.2s;
         }
-        
-        button:active { transform: scale(0.95); }
 
-        .btn-host { background: #31b0d1; }
-        .btn-join { background: #af66ce; }
+        .btn-green { background: #00ff88; color: #000; }
+        .btn-blue { background: #00ffff; color: #000; }
+        .btn-pink { background: #ff0055; color: #fff; }
+        .btn-dark { background: #333; color: #fff; border: 1px solid #555; }
         
-        #status-msg { margin-top: 20px; color: yellow; font-size: 18px; }
-        #my-id-display { user-select: text; color: #00ffff; font-size: 24px; margin: 10px 0; word-break: break-all;}
+        button:hover { transform: scale(1.02); filter: brightness(1.2); }
+        input { width: 100%; padding: 10px; box-sizing: border-box; margin-bottom: 10px; background: #222; border: 1px solid #444; color: white; text-align: center; }
+
+        .hidden { display: none !important; }
+        .id-box { font-family: monospace; background: #222; padding: 10px; color: #00ffff; border: 1px dashed #555; margin: 10px 0; user-select: text; }
+        
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px black;
+        }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" width="960" height="540"></canvas>
     
-    <div id="ui-layer">
-        <div class="score-text">
-            <span class="p2-score">OPONENTE: 0</span>
-            <span class="p1-score">VOCÊ: 0</span>
-        </div>
+    <div id="hud" class="hidden">
+        <div>Controles: WASD ou Setas</div>
+        <div id="ping-display">Modo: Local</div>
     </div>
 
-    <div id="lobby-screen">
-        <h1>FNF ONLINE (P2P)</h1>
-        <div class="lobby-box" id="initial-menu">
-            <button class="btn-host" onclick="setupHost()">CRIAR SALA (HOST)</button>
-            <p>- OU -</p>
-            <input type="text" id="remote-id" placeholder="Cole o ID do amigo aqui">
-            <button class="btn-join" onclick="joinGame()">ENTRAR NA SALA</button>
+    <div id="ui">
+        <h1>NEON CO-OP</h1>
+        
+        <div id="main-menu">
+            <button class="btn-green" onclick="startSingle()">Single Player</button>
+            <div style="margin: 15px 0; border-top: 1px solid #444;"></div>
+            <button class="btn-blue" onclick="setupHost()">Criar Sala (Host)</button>
+            <button class="btn-pink" onclick="showJoin()">Entrar em Sala</button>
+            <button class="btn-dark" onclick="toggleFullScreen()">Tela Cheia</button>
         </div>
 
-        <div class="lobby-box" id="host-menu" style="display:none;">
-            <p>Mande este ID para seu amigo:</p>
-            <div id="my-id-display">Gerando ID...</div>
-            <p id="waiting-msg">Aguardando conexão...</p>
+        <div id="host-menu" class="hidden">
+            <p>Seu ID de Sala:</p>
+            <div id="my-id" class="id-box">Gerando...</div>
+            <p>Envie para seu amigo.</p>
+            <div id="host-status" style="color: yellow; margin-bottom: 10px;">Aguardando P2...</div>
+            <button class="btn-dark" onclick="location.reload()">Cancelar</button>
+        </div>
+
+        <div id="join-menu" class="hidden">
+            <input type="text" id="remoteId" placeholder="Cole o ID do Host aqui">
+            <button class="btn-pink" onclick="joinRoom()">Conectar</button>
+            <button class="btn-dark" onclick="location.reload()">Voltar</button>
         </div>
         
-        <div id="status-msg"></div>
+        <div id="game-over" class="hidden">
+            <h2 style="color: #ff0055;">VOCÊ MORREU</h2>
+            <p>Pressione R para reiniciar</p>
+            <button class="btn-green" onclick="resetGame()">Tentar Novamente</button>
+        </div>
     </div>
 </div>
 
 <script>
-/**
- * FNF ONLINE P2P ENGINE (PeerJS)
- * Nenhuma instalação de servidor necessária.
- */
+    // --- ENGINE E CONFIGURAÇÕES ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-const CONFIG = {
-    BPM: 135,
-    SCROLL_SPEED: 2.8,
-    NOTE_SIZE: 50,
-    HIT_WINDOW: 150,
-};
-
-const COLORS = ['#c24b99', '#00ffff', '#12fa05', '#f9393f'];
-
-// --- SISTEMA DE REDE P2P ---
-let peer = null;
-let conn = null;
-let isHost = false;
-let myPlayerId = 'p1'; // Host é p1 (direita), Cliente é p2 (esquerda)
-
-function setupHost() {
-    isHost = true;
-    myPlayerId = 'p1'; // Eu sou o Host, controlo o Azul
-    document.getElementById('initial-menu').style.display = 'none';
-    document.getElementById('host-menu').style.display = 'flex';
+    // Constantes de Física (Platformer Feel)
+    const GRAVITY = 0.5;
+    const FRICTION = 0.8;
+    const MOVE_SPEED = 0.8;
+    const MAX_SPEED = 6;
+    const JUMP_FORCE = -10;
     
-    // Cria conexão Peer
-    peer = new Peer(); 
+    // Estado do Jogo
+    let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
+    let isMultiplayer = false;
+    let isHost = false;
+    let myId = 1; // 1 = Host/Single, 2 = Client
     
-    peer.on('open', (id) => {
-        document.getElementById('my-id-display').innerText = id;
-    });
-
-    peer.on('connection', (c) => {
-        conn = c;
-        setupConnectionEvents();
-        document.getElementById('waiting-msg').innerText = "Amigo Conectado! Iniciando...";
-        setTimeout(() => {
-            // Envia sinal de start para garantir sincronia
-            conn.send({ type: 'START_GAME' });
-            game.start();
-        }, 1000);
-    });
-}
-
-function joinGame() {
-    isHost = false;
-    myPlayerId = 'p2'; // Eu sou o Cliente, controlo o Roxo
-    const peerId = document.getElementById('remote-id').value;
-    if(!peerId) return alert("Cole o ID do amigo!");
-
-    document.getElementById('status-msg').innerText = "Conectando...";
-    peer = new Peer();
-
-    peer.on('open', () => {
-        conn = peer.connect(peerId);
-        setupConnectionEvents();
-    });
-}
-
-function setupConnectionEvents() {
-    conn.on('open', () => {
-        document.getElementById('status-msg').innerText = "Conexão Estabelecida!";
-    });
-
-    conn.on('data', (data) => {
-        handleNetworkData(data);
-    });
+    // Networking
+    let peer, conn;
     
-    conn.on('error', (err) => alert("Erro: " + err));
-}
+    // Inputs
+    const keys = {
+        left: false, right: false, up: false, r: false
+    };
 
-function handleNetworkData(data) {
-    if (data.type === 'START_GAME') {
-        game.start();
-    }
-    if (data.type === 'KEY_DOWN') {
-        // O outro jogador apertou uma tecla
-        // Se eu sou P1, recebo dados do P2. Se sou P2, recebo do P1.
-        const otherPlayer = isHost ? 'p2' : 'p1';
-        game.triggerRemoteKey(otherPlayer, data.lane, true);
-    }
-    if (data.type === 'KEY_UP') {
-        const otherPlayer = isHost ? 'p2' : 'p1';
-        game.triggerRemoteKey(otherPlayer, data.lane, false);
-    }
-    if (data.type === 'HIT_SCORE') {
-        const otherPlayer = isHost ? 'p2' : 'p1';
-        game.registerHit(otherPlayer, data.diff, true); // true = remote
-    }
-}
+    // Objetos
+    let players = [];
+    let mapBlocks = []; // Plataformas, Paredes
+    let hazards = [];   // Espinhos, Serras
+    let mechanics = []; // Botões, Portões
+    let particles = [];
+    
+    let camera = { x: 0, y: 0 };
 
-// --- ENGINE DE ÁUDIO ---
-class MusicEngine {
-    constructor() {
-        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        this.isPlaying = false;
-        this.startTime = 0;
-    }
+    // --- CLASSES ---
 
-    start() {
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-        this.startTime = this.ctx.currentTime;
-        this.isPlaying = true;
-        this.scheduleBeat();
-    }
-
-    scheduleBeat() {
-        if(!this.isPlaying) return;
-        const time = this.ctx.currentTime;
-        const beatLen = 60 / CONFIG.BPM;
-        const nextBeat = Math.ceil((time - this.startTime) / beatLen) * beatLen + this.startTime;
-        
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.frequency.value = 100;
-        osc.frequency.exponentialRampToValueAtTime(0.01, nextBeat + 0.1);
-        gain.gain.setValueAtTime(0.5, nextBeat);
-        gain.gain.exponentialRampToValueAtTime(0.01, nextBeat + 0.1);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(nextBeat);
-        osc.stop(nextBeat + 0.1);
-
-        setTimeout(() => {
-            if(this.isPlaying) game.onBeatHit();
-            this.scheduleBeat();
-        }, (nextBeat - time) * 1000);
-    }
-
-    getCurrentTime() {
-        if (!this.isPlaying) return 0;
-        return (this.ctx.currentTime - this.startTime) * 1000;
-    }
-}
-
-class Note {
-    constructor(time, lane, playerOwner) {
-        this.time = time;
-        this.lane = lane; 
-        this.playerOwner = playerOwner; // 'p1' ou 'p2'
-        this.hit = false;
-        this.missed = false;
-    }
-}
-
-class Game {
-    constructor() {
-        this.canvas = document.getElementById('gameCanvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.music = new MusicEngine();
-        this.canvas.width = 1280;
-        this.canvas.height = 720;
-
-        this.notes = [];
-        this.p1Score = 0;
-        this.p2Score = 0;
-        this.health = 50;
-        this.winner = null;
-
-        this.p1Keys = [false, false, false, false]; 
-        this.p2Keys = [false, false, false, false];
-        this.p1Scale = 1; this.p2Scale = 1;
-
-        this.bindInput();
-        this.loop = this.loop.bind(this);
-    }
-
-    generateChart() {
-        // Gera um chart fixo (seed pseudo-fixo) para garantir que ambos tenham as mesmas notas
-        const totalBeats = 300; 
-        const msPerBeat = (60000 / CONFIG.BPM);
-        
-        // Função pseudo-aleatória simples para sincronia
-        let seed = 1234;
-        const random = () => {
-            var x = Math.sin(seed++) * 10000;
-            return x - Math.floor(x);
+    class Player {
+        constructor(id, color, startX, startY) {
+            this.id = id;
+            this.color = color;
+            this.x = startX;
+            this.y = startY;
+            this.w = 30;
+            this.h = 30;
+            this.vx = 0;
+            this.vy = 0;
+            this.onGround = false;
+            this.dead = false;
+            this.facingRight = true;
         }
 
-        for (let i = 0; i < totalBeats; i++) {
-            if (i > 4 && random() > 0.4) {
-                this.notes.push(new Note(i * msPerBeat, Math.floor(random()*4), 'p1'));
-            }
-            if (i > 4 && random() > 0.4) {
-                this.notes.push(new Note(i * msPerBeat, Math.floor(random()*4), 'p2'));
-            }
+        update() {
+            if (this.dead) return;
+
+            // Física Horizontal
+            this.x += this.vx;
+            this.vx *= FRICTION;
+
+            // Física Vertical
+            this.y += this.vy;
+            this.vy += GRAVITY;
+
+            // Limites do Mundo (Morte se cair)
+            if (this.y > 800) this.die();
+
+            // Colisão com Blocos Sólidos
+            this.onGround = false;
+            mapBlocks.forEach(block => {
+                const col = checkAABB(this, block);
+                if (col) {
+                    // Resolução de colisão simples
+                    const dx = (this.x + this.w/2) - (block.x + block.w/2);
+                    const dy = (this.y + this.h/2) - (block.y + block.h/2);
+                    const width = (this.w + block.w) / 2;
+                    const height = (this.h + block.h) / 2;
+                    const crossWidth = width * dy;
+                    const crossHeight = height * dx;
+
+                    if (Math.abs(dx) <= width && Math.abs(dy) <= height) {
+                        if (crossWidth > crossHeight) {
+                            if (crossWidth > -crossHeight) { // Colisão em Baixo (cabeça batendo)
+                                this.y = block.y + block.h;
+                                this.vy = 0;
+                            } else { // Colisão a Esquerda
+                                this.x = block.x - this.w;
+                                this.vx = 0;
+                            }
+                        } else {
+                            if (crossWidth > -crossHeight) { // Colisão a Direita
+                                this.x = block.x + block.w;
+                                this.vx = 0;
+                            } else { // Colisão em Cima (Chão)
+                                this.y = block.y - this.h;
+                                this.vy = 0;
+                                this.onGround = true;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Colisão com Perigos (Serras/Espinhos)
+            hazards.forEach(h => {
+                if (checkCollision(this, h)) this.die();
+            });
+
+            // Colisão com Mecânicas (Portões Fechados matam se bater de frente, ou bloqueiam)
+            mechanics.forEach(m => {
+                if (m.type === 'gate' && m.active && checkCollision(this, m)) {
+                    // Tratando portão como parede sólida
+                    const dx = this.x - m.x;
+                    if (Math.abs(dx) < 30) { 
+                        if (this.x < m.x) this.x = m.x - this.w;
+                        else this.x = m.x + m.w;
+                        this.vx = 0;
+                    }
+                }
+            });
         }
-        this.notes.sort((a, b) => a.time - b.time);
-    }
 
-    start() {
-        this.generateChart();
-        this.music.start();
-        document.getElementById('lobby-screen').style.display = 'none';
-        requestAnimationFrame(this.loop);
-    }
+        die() {
+            if (this.dead) return;
+            this.dead = true;
+            createExplosion(this.x, this.y, this.color);
+            if (isHost || !isMultiplayer) setTimeout(triggerGameOver, 500);
+        }
 
-    bindInput() {
-        window.addEventListener('keydown', (e) => {
-            if(e.repeat) return;
-            const lane = this.getLane(e.key);
+        draw() {
+            if (this.dead) return;
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.w, this.h);
             
-            // Só processo input se for MINHA vez de jogar
-            // Se sou P1, só processo teclas para P1.
-            if (lane !== -1) {
-                // Atualiza visualmente LOCALMENTE
-                if(myPlayerId === 'p1') this.p1Keys[lane] = true;
-                else this.p2Keys[lane] = true;
+            // Olho (para ver direção)
+            ctx.fillStyle = "white";
+            let eyeX = this.facingRight ? this.x + 20 : this.x + 5;
+            ctx.fillRect(eyeX - camera.x, this.y + 5 - camera.y, 8, 8);
+            
+            // ID
+            ctx.fillStyle = "white";
+            ctx.font = "10px Arial";
+            ctx.fillText(`P${this.id}`, this.x - camera.x + 10, this.y - camera.y - 5);
+        }
+    }
 
-                // Tenta acertar a nota LOCALMENTE
-                this.checkHit(lane, myPlayerId);
+    // --- SISTEMA DE MAPA ---
 
-                // Envia para o amigo pela internet
-                if(conn && conn.open) {
-                    conn.send({ type: 'KEY_DOWN', lane: lane });
+    function generateLevel() {
+        mapBlocks = [];
+        hazards = [];
+        mechanics = [];
+        
+        // Função auxiliar para criar blocos
+        const addBlock = (x, y, w, h) => mapBlocks.push({x, y, w, h, color: '#333'});
+        const addSpike = (x, y) => hazards.push({x, y: y+10, w: 30, h: 20, type: 'spike'});
+        const addSaw = (x, y, range) => hazards.push({x, y, w: 40, h: 40, type: 'saw', cx: x, cy: y, angle: 0, range});
+        
+        // CHUNK 1: Início Seguro e Pulo Básico
+        addBlock(-100, 400, 600, 50); // Chão inicial
+        addBlock(600, 350, 100, 20);  // Plat 1
+        addBlock(800, 300, 100, 20);  // Plat 2
+        
+        // CHUNK 2: Introdução ao Perigo
+        addBlock(1000, 400, 500, 50); // Chão 2
+        addSpike(1200, 370);
+        addSpike(1300, 370);
+        
+        // CHUNK 3: O Puzzle Co-op (Portão e Botão)
+        // O botão fica em cima, o portão embaixo
+        addBlock(1600, 400, 800, 50); // Chão longo
+        
+        // Plataforma alta para o botão
+        addBlock(1700, 250, 100, 20); 
+        
+        // O Botão (P1 precisa subir aqui)
+        mechanics.push({
+            x: 1730, y: 240, w: 40, h: 10, 
+            type: 'button', 
+            id: 1, 
+            pressed: false,
+            color: '#ffd700'
+        });
+
+        // O Portão (Bloqueia o caminho embaixo)
+        mechanics.push({
+            x: 2000, y: 300, w: 20, h: 100,
+            type: 'gate',
+            linkId: 1, // Linkado ao botão 1
+            active: true, // Começa fechado
+            color: '#00ffff'
+        });
+
+        // Serra Móvel depois do portão
+        addSaw(2200, 360, 100);
+
+        // CHUNK 4: Parkour Conjunto
+        addBlock(2500, 400, 200, 50);
+        addBlock(2800, 300, 50, 200); // Parede para pular
+        addBlock(3000, 400, 500, 50);
+        
+        // Final
+        addBlock(3600, 400, 200, 50);
+        // Bandeira/Fim (Simulado por um bloco verde)
+        mapBlocks.push({x: 3700, y: 300, w: 20, h: 100, color: '#00ff00', win: true});
+    }
+
+    // --- GAME LOOP ---
+
+    function initGame() {
+        players = [
+            new Player(1, '#00ffff', 50, 300),
+            new Player(2, '#ff0055', 100, 300)
+        ];
+        
+        if (!isMultiplayer) {
+            // No single player, o Player 2 fica "dormindo" ou é removido, 
+            // mas para testar as mecânicas de botão, vou deixar ele controlável 
+            // com teclas diferentes ou simplesmente remove-lo e mudar o mapa.
+            // Para simplificar: Singleplayer joga sozinho, botão é "toggle" (aperta e fica).
+            players.pop(); 
+        }
+
+        generateLevel();
+        gameState = 'PLAYING';
+        document.getElementById('ui').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        requestAnimationFrame(loop);
+    }
+
+    function loop() {
+        if (gameState !== 'PLAYING') return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Processar Inputs (Host ou Local)
+        processInputs();
+
+        // 2. Física e Lógica (Apenas HOST roda lógica pesada)
+        if (isHost || !isMultiplayer) {
+            updatePhysics();
+            updateMechanics();
+            broadcastState();
+        }
+
+        // 3. Atualizar Câmera (Interpolação para suavidade)
+        // Câmera segue o ponto médio entre os jogadores vivos
+        let targetX = 0, targetY = 0, count = 0;
+        players.forEach(p => {
+            if (!p.dead) {
+                targetX += p.x;
+                targetY += p.y;
+                count++;
+            }
+        });
+        if (count > 0) {
+            targetX /= count;
+            targetY /= count;
+            // Centraliza
+            targetX -= canvas.width / 2;
+            targetY -= canvas.height / 2;
+        }
+        // Smooth camera
+        camera.x += (targetX - camera.x) * 0.1;
+        // Clamp Y (não deixa câmera subir/descer demais)
+        camera.y = Math.max(0, Math.min(targetY, 200)); 
+
+        // 4. Renderizar
+        drawWorld();
+
+        requestAnimationFrame(loop);
+    }
+
+    function processInputs() {
+        // Se Single ou Host: Aplica input direto no P1
+        // Se Client: Envia input para Host, Host aplica no P2
+        
+        let activePlayer = (myId === 1) ? players[0] : players[1];
+        if (!activePlayer || activePlayer.dead) return;
+
+        // Movimento Horizontal
+        if (keys.left) { activePlayer.vx -= MOVE_SPEED; activePlayer.facingRight = false; }
+        if (keys.right) { activePlayer.vx += MOVE_SPEED; activePlayer.facingRight = true; }
+        
+        // Limite de Velocidade
+        if (activePlayer.vx > MAX_SPEED) activePlayer.vx = MAX_SPEED;
+        if (activePlayer.vx < -MAX_SPEED) activePlayer.vx = -MAX_SPEED;
+
+        // Pulo
+        if (keys.up && activePlayer.onGround) {
+            activePlayer.vy = JUMP_FORCE;
+            activePlayer.onGround = false;
+        }
+
+        // Enviar input via rede se for cliente
+        if (isMultiplayer && !isHost) {
+            conn.send({ type: 'INPUT', keys: keys });
+        }
+    }
+
+    function updatePhysics() {
+        players.forEach(p => p.update());
+        
+        // Atualizar Serras Móveis
+        hazards.forEach(h => {
+            if (h.type === 'saw') {
+                h.angle += 0.2;
+                // Movimento de vai e vem
+                h.x = h.cx + Math.sin(Date.now() / 500) * h.range;
+            }
+        });
+    }
+
+    function updateMechanics() {
+        // Lógica dos Botões e Portões
+        mechanics.forEach(mech => {
+            if (mech.type === 'button') {
+                let pressed = false;
+                // Verifica se ALGUM player está em cima do botão
+                players.forEach(p => {
+                    if (!p.dead && checkAABB(p, mech)) pressed = true;
+                });
+                
+                // No singleplayer, botão é "sticky" (aperta uma vez e fica)
+                if (!isMultiplayer && pressed) mech.pressed = true;
+                else if (isMultiplayer) mech.pressed = pressed; // No multi precisa segurar
+            }
+            
+            if (mech.type === 'gate') {
+                // Acha o botão correspondente
+                const btn = mechanics.find(m => m.type === 'button' && m.id === mech.linkId);
+                if (btn) {
+                    mech.active = !btn.pressed; // Se botão pressionado, portão desativa (abre)
+                }
+            }
+        });
+    }
+
+    function drawWorld() {
+        // Fundo Parallax simples
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.05)";
+        for(let i=0; i<10; i++) ctx.fillRect((i*200 - camera.x*0.5)%1000, 100, 50, 500);
+        ctx.restore();
+
+        // Desenhar Blocos
+        mapBlocks.forEach(b => {
+            ctx.fillStyle = b.color;
+            ctx.fillRect(b.x - camera.x, b.y - camera.y, b.w, b.h);
+            // Borda Neon
+            ctx.strokeStyle = "#444";
+            ctx.strokeRect(b.x - camera.x, b.y - camera.y, b.w, b.h);
+        });
+
+        // Desenhar Mecânicas (Botões/Portões)
+        mechanics.forEach(m => {
+            if (m.type === 'button') {
+                ctx.fillStyle = m.pressed ? '#555' : m.color;
+                let h = m.pressed ? m.h / 2 : m.h; // Esmaga visualmente
+                let y = m.pressed ? m.y + m.h/2 : m.y;
+                ctx.fillRect(m.x - camera.x, y - camera.y, m.w, h);
+            } else if (m.type === 'gate') {
+                if (m.active) {
+                    ctx.fillStyle = m.color;
+                    ctx.fillRect(m.x - camera.x, m.y - camera.y, m.w, m.h);
+                    // Brilho no portão
+                    ctx.shadowColor = m.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(m.x - camera.x + 5, m.y - camera.y + 5, m.w-10, m.h-10);
+                    ctx.shadowBlur = 0;
+                } else {
+                    // Portão aberto (fantasma)
+                    ctx.strokeStyle = "rgba(0, 255, 255, 0.2)";
+                    ctx.strokeRect(m.x - camera.x, m.y - camera.y, m.w, m.h);
                 }
             }
         });
 
-        window.addEventListener('keyup', (e) => {
-            const lane = this.getLane(e.key);
-            if (lane !== -1) {
-                if(myPlayerId === 'p1') this.p1Keys[lane] = false;
-                else this.p2Keys[lane] = false;
-
-                if(conn && conn.open) {
-                    conn.send({ type: 'KEY_UP', lane: lane });
+        // Desenhar Perigos
+        hazards.forEach(h => {
+            if (h.type === 'spike') {
+                ctx.fillStyle = "red";
+                ctx.beginPath();
+                ctx.moveTo(h.x - camera.x, h.y + h.h - camera.y);
+                ctx.lineTo(h.x + h.w/2 - camera.x, h.y - camera.y);
+                ctx.lineTo(h.x + h.w - camera.x, h.y + h.h - camera.y);
+                ctx.fill();
+            } else if (h.type === 'saw') {
+                ctx.save();
+                ctx.translate(h.x + h.w/2 - camera.x, h.y + h.h/2 - camera.y);
+                ctx.rotate(h.angle);
+                ctx.fillStyle = "#aaa";
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = "red"; // Dentes da serra
+                for(let i=0; i<8; i++) {
+                    ctx.rotate(Math.PI/4);
+                    ctx.fillRect(15, -5, 10, 10);
                 }
+                ctx.restore();
             }
+        });
+
+        // Players
+        players.forEach(p => p.draw());
+
+        // Partículas (Explosão)
+        particles.forEach((p, index) => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - camera.x, p.y - camera.y, p.size, p.size);
+            if(p.life <= 0) particles.splice(index, 1);
         });
     }
 
-    // Input Remoto (Vindo da internet)
-    triggerRemoteKey(player, lane, isDown) {
-        if(player === 'p1') this.p1Keys[lane] = isDown;
-        else this.p2Keys[lane] = isDown;
+    // --- UTILITÁRIOS ---
+
+    function checkCollision(player, obj) {
+        return (player.x < obj.x + obj.w &&
+                player.x + player.w > obj.x &&
+                player.y < obj.y + obj.h &&
+                player.y + player.h > obj.y);
+    }
+    
+    // AABB (Axis-Aligned Bounding Box) Genérico
+    function checkAABB(rect1, rect2) {
+        return (rect1.x < rect2.x + rect2.w &&
+                rect1.x + rect1.w > rect2.x &&
+                rect1.y < rect2.y + rect2.h &&
+                rect1.y + rect1.h > rect2.y);
     }
 
-    getLane(key) {
-        // Agora ambos os jogadores podem usar as setas ou WASD, 
-        // já que estão em teclados diferentes!
-        const map = { 
-            'ArrowLeft': 0, 'a': 0, 'A': 0,
-            'ArrowDown': 1, 's': 1, 'S': 1,
-            'ArrowUp': 2, 'w': 2, 'W': 2,
-            'ArrowRight': 3, 'd': 3, 'D': 3 
-        };
-        return map[key] !== undefined ? map[key] : -1;
-    }
-
-    checkHit(lane, player) {
-        const currentTime = this.music.getCurrentTime();
-        const note = this.notes.find(n => 
-            n.lane === lane && !n.hit && !n.missed && n.playerOwner === player &&
-            Math.abs(currentTime - n.time) < CONFIG.HIT_WINDOW
-        );
-
-        if (note) {
-            note.hit = true;
-            const diff = Math.abs(currentTime - note.time);
-            this.registerHit(player, diff, false);
-            
-            // Avisa o oponente que acertei e qual foi o timing
-            if(conn && conn.open) {
-                conn.send({ type: 'HIT_SCORE', diff: diff });
-            }
+    function createExplosion(x, y, color) {
+        for(let i=0; i<20; i++) {
+            particles.push({
+                x: x + 15, y: y + 15,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 30,
+                color: color,
+                size: Math.random() * 5 + 2
+            });
         }
     }
 
-    registerHit(player, diff, isRemote) {
-        let scoreGain = 350;
-        let healthImpact = 3; 
-
-        if (diff > 120) { scoreGain = 50; healthImpact = 1; }
-        else if (diff > 80) { scoreGain = 100; healthImpact = 2; }
+    function triggerGameOver() {
+        if (gameState === 'GAMEOVER') return;
+        gameState = 'GAMEOVER';
+        document.getElementById('ui').classList.remove('hidden');
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('game-over').classList.remove('hidden');
         
-        if (player === 'p1') {
-            this.p1Score += scoreGain;
-            this.health += healthImpact; 
-            this.p1Scale = 1.15;
+        if (isHost && isMultiplayer) conn.send({ type: 'GAMEOVER' });
+    }
+    
+    function resetGame() {
+        // Envia reset para client
+        if (isHost && isMultiplayer) conn.send({ type: 'RESET' });
+        initGame();
+    }
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
         } else {
-            this.p2Score += scoreGain;
-            this.health -= healthImpact;
-            this.p2Scale = 1.15;
+            if (document.exitFullscreen) document.exitFullscreen();
         }
-
-        if(this.health > 100) this.health = 100;
-        if(this.health < 0) this.health = 0;
-
-        this.updateUI();
     }
 
-    onBeatHit() {
-        this.p1Scale = 1.05;
-        this.p2Scale = 1.05;
+    // --- CONTROLE DE INPUTS ---
+    window.addEventListener('keydown', e => {
+        if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+        if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = true;
+        if (e.key.toLowerCase() === 'r' && gameState === 'GAMEOVER') resetGame();
+    });
+
+    window.addEventListener('keyup', e => {
+        if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+        if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+        if (e.key === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = false;
+    });
+
+    // --- MULTIPLAYER P2P (PEERJS) ---
+
+    function startSingle() {
+        isMultiplayer = false;
+        isHost = true;
+        initGame();
     }
 
-    updateUI() {
-        document.querySelector('.p1-score').innerText = `HOST (AZUL): ${this.p1Score}`;
-        document.querySelector('.p2-score').innerText = `CLIENTE (ROXO): ${this.p2Score}`;
-    }
-
-    draw() {
-        this.ctx.fillStyle = '#111';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    function setupHost() {
+        peer = new Peer();
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('host-menu').classList.remove('hidden');
         
-        // Stage e Luzes
-        const grad = this.ctx.createRadialGradient(640, 720, 100, 640, 0, 800);
-        grad.addColorStop(0, '#333');
-        grad.addColorStop(1, '#000');
-        this.ctx.fillStyle = grad;
-        this.ctx.fillRect(0,0,1280,720);
+        peer.on('open', id => {
+            document.getElementById('my-id').innerText = id;
+            isHost = true;
+            myId = 1;
+        });
 
-        this.p1Scale += (1 - this.p1Scale) * 0.2;
-        this.p2Scale += (1 - this.p2Scale) * 0.2;
-
-        this.drawCharacter(250, 400, 'p2', this.p2Scale);
-        this.drawCharacter(850, 400, 'p1', this.p1Scale);
-
-        this.drawStrums(100, this.p2Keys); // P2 (Cliente)
-        this.drawStrums(750, this.p1Keys); // P1 (Host)
-
-        this.drawNotes();
-        this.drawHealthBar();
-        this.checkWinner();
-        
-        requestAnimationFrame(this.loop);
+        peer.on('connection', c => {
+            conn = c;
+            setupConn();
+            document.getElementById('host-status').innerText = "JOGADOR 2 CONECTADO! INICIANDO...";
+            document.getElementById('host-status').style.color = "#00ff00";
+            isMultiplayer = true;
+            setTimeout(initGame, 1000);
+        });
     }
 
-    checkWinner() {
-        if (this.winner) return;
-        if (this.health <= 0) this.endGame('ROXO (CLIENTE) VENCEU!');
-        if (this.health >= 100) this.endGame('AZUL (HOST) VENCEU!');
+    function showJoin() {
+        document.getElementById('main-menu').classList.add('hidden');
+        document.getElementById('join-menu').classList.remove('hidden');
     }
 
-    drawCharacter(x, y, type, scale) {
-        this.ctx.save();
-        this.ctx.translate(x + 100, y + 100);
-        this.ctx.scale(scale, scale);
-        this.ctx.translate(-(x + 100), -(y + 100));
-        
-        // Indicador visual de "VOCÊ"
-        if(type === myPlayerId) {
-            this.ctx.fillStyle = 'yellow';
-            this.ctx.font = '20px Arial';
-            this.ctx.fillText("VOCÊ", x + 70, y - 20);
-        }
-
-        this.ctx.fillStyle = type === 'p1' ? '#31b0d1' : '#af66ce';
-        this.ctx.fillRect(x, y, 200, 200);
-        
-        this.ctx.fillStyle = 'white';
-        let eyeOffset = type === 'p1' ? 0 : 40;
-        this.ctx.fillRect(x + 20 + eyeOffset, y + 50, 50, 50);
-        this.ctx.fillRect(x + 90 + eyeOffset, y + 50, 50, 50);
-        
-        this.ctx.fillStyle = 'black';
-        this.ctx.fillRect(x + 35 + eyeOffset, y + 65, 20, 20);
-        this.ctx.fillRect(x + 105 + eyeOffset, y + 65, 20, 20);
-
-        this.ctx.fillStyle = '#222';
-        this.ctx.fillRect(x + 80, y + 130, 40, 20);
-        this.ctx.restore();
+    function joinRoom() {
+        const destId = document.getElementById('remoteId').value;
+        peer = new Peer();
+        peer.on('open', id => {
+            conn = peer.connect(destId);
+            setupConn();
+            isHost = false;
+            myId = 2;
+        });
     }
 
-    drawStrums(offsetX, keys) {
-        for (let i = 0; i < 4; i++) {
-            const x = offsetX + (i * 110);
-            const y = 100;
-            this.ctx.strokeStyle = COLORS[i];
-            this.ctx.lineWidth = 4;
+    function setupConn() {
+        conn.on('data', data => {
+            // CLIENT LÓGICA
+            if (!isHost) {
+                if (data.type === 'UPDATE') {
+                    // Sincroniza posições
+                    players[0].x = data.p1.x; players[0].y = data.p1.y; players[0].dead = data.p1.dead;
+                    players[1].x = data.p2.x; players[1].y = data.p2.y; players[1].dead = data.p2.dead;
+                    // Sincroniza Mecânicas
+                    mechanics.forEach((m, i) => {
+                        if (data.mechs[i]) {
+                            m.active = data.mechs[i].a;
+                            m.pressed = data.mechs[i].p;
+                        }
+                    });
+                    // Sincroniza Perigos Móveis
+                    hazards.forEach((h, i) => {
+                       if (h.type === 'saw' && data.hazz[i]) {
+                           h.x = data.hazz[i].x;
+                           h.angle = data.hazz[i].a;
+                       } 
+                    });
+                    
+                    if (gameState === 'MENU') {
+                        document.getElementById('ui').classList.add('hidden');
+                        document.getElementById('hud').classList.remove('hidden');
+                        generateLevel(); // Gera mapa localmente para renderizar
+                        gameState = 'PLAYING';
+                        requestAnimationFrame(loop);
+                    }
+                }
+                if (data.type === 'GAMEOVER') triggerGameOver();
+                if (data.type === 'RESET') initGame();
+            }
             
-            if (keys[i]) {
-                this.ctx.fillStyle = COLORS[i];
-                this.ctx.globalAlpha = 0.8;
-                this.drawArrow(x, y, i, true);
-                this.ctx.globalAlpha = 1.0;
-            } else {
-                this.ctx.fillStyle = '#333';
-                this.ctx.globalAlpha = 0.5;
-                this.drawArrow(x, y, i, true);
-                this.ctx.globalAlpha = 1.0;
-                this.ctx.stroke();
-            }
-        }
-    }
-
-    drawArrow(x, y, dir, filled) {
-        this.ctx.beginPath();
-        const s = 60;
-        if (dir === 0) { this.ctx.moveTo(x + s, y); this.ctx.lineTo(x, y + s/2); this.ctx.lineTo(x + s, y + s); }
-        else if (dir === 1) { this.ctx.moveTo(x, y); this.ctx.lineTo(x + s/2, y + s); this.ctx.lineTo(x + s, y); }
-        else if (dir === 2) { this.ctx.moveTo(x, y + s); this.ctx.lineTo(x + s/2, y); this.ctx.lineTo(x + s, y + s); }
-        else if (dir === 3) { this.ctx.moveTo(x, y); this.ctx.lineTo(x + s, y + s/2); this.ctx.lineTo(x, y + s); }
-        if (filled) this.ctx.fill();
-        this.ctx.stroke();
-    }
-
-    drawNotes() {
-        const currentTime = this.music.getCurrentTime();
-        this.notes.forEach(note => {
-            if (note.hit) return;
-            const distance = (note.time - currentTime) * (0.45 * CONFIG.SCROLL_SPEED);
-            const offsetX = note.playerOwner === 'p1' ? 750 : 100;
-            const x = offsetX + (note.lane * 110);
-            const y = 100 + distance;
-
-            // Miss logic (apenas para o dono da nota)
-            if (y < -50 && !note.missed && note.playerOwner === myPlayerId) {
-                note.missed = true;
-                // Reduz vida local e envia miss pro amigo (simplificado aqui como redução de score local por enquanto)
-            }
-
-            if (y > -100 && y < 800) {
-                this.ctx.fillStyle = COLORS[note.lane];
-                this.ctx.fillRect(x + 10, y + 10, 50, 50);
-                this.ctx.fillStyle = 'white';
-                this.ctx.fillRect(x + 22, y + 22, 26, 26);
+            // HOST LÓGICA (Recebendo input do P2)
+            if (isHost && data.type === 'INPUT') {
+                // Atualiza o estado das teclas virtuais do P2
+                // Note: Precisaríamos guardar o estado das teclas do P2 separadamente
+                // Hack rápido: vamos aplicar velocidade direta baseada no input remoto
+                const p2 = players[1];
+                if (!p2.dead) {
+                    if (data.keys.left) { p2.vx -= MOVE_SPEED; p2.facingRight = false; }
+                    if (data.keys.right) { p2.vx += MOVE_SPEED; p2.facingRight = true; }
+                    if (data.keys.up && p2.onGround) { p2.vy = JUMP_FORCE; p2.onGround = false; }
+                }
             }
         });
     }
 
-    drawHealthBar() {
-        const barWidth = 600; const barHeight = 25;
-        const x = (this.canvas.width / 2) - (barWidth / 2); const y = 650;
-        this.ctx.fillStyle = 'white'; this.ctx.fillRect(x - 4, y - 4, barWidth + 8, barHeight + 8);
-        this.ctx.fillStyle = '#af66ce'; this.ctx.fillRect(x, y, barWidth, barHeight);
-        const p1Width = (this.health / 100) * barWidth;
-        this.ctx.fillStyle = '#31b0d1'; this.ctx.fillRect(x + (barWidth - p1Width), y, p1Width, barHeight);
-        const iconX = x + (barWidth - p1Width);
-        this.ctx.fillStyle = '#af66ce'; this.ctx.beginPath(); this.ctx.arc(iconX - 20, y + 12, 25, 0, Math.PI*2); this.ctx.fill();
-        this.ctx.lineWidth=3; this.ctx.strokeStyle='black'; this.ctx.stroke();
-        this.ctx.fillStyle = '#31b0d1'; this.ctx.beginPath(); this.ctx.arc(iconX + 20, y + 12, 25, 0, Math.PI*2); this.ctx.fill();
-        this.ctx.stroke();
+    function broadcastState() {
+        if (!conn) return;
+        
+        // Host envia o estado do mundo para o client
+        // Otimização: Enviamos arrays simplificados
+        const mechState = mechanics.map(m => ({ a: m.active, p: m.pressed }));
+        const hazzState = hazards.map(h => h.type === 'saw' ? { x: h.x, a: h.angle } : null);
+
+        conn.send({
+            type: 'UPDATE',
+            p1: { x: players[0].x, y: players[0].y, dead: players[0].dead },
+            p2: { x: players[1].x, y: players[1].y, dead: players[1].dead },
+            mechs: mechState,
+            hazz: hazzState
+        });
     }
 
-    endGame(msg) {
-        this.winner = msg;
-        this.music.ctx.suspend();
-        this.ctx.fillStyle = 'rgba(0,0,0,0.9)';
-        this.ctx.fillRect(0,0,1280,720);
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = "60px Arial Black";
-        this.ctx.textAlign = "center";
-        this.ctx.fillText(msg, 640, 360);
-        this.ctx.font = "30px Arial";
-        this.ctx.fillText("Recarregue a página para jogar de novo", 640, 420);
-    }
-
-    loop() {
-        if(this.winner) {
-            this.draw(); // Mantém desenhado o final
-            return;
-        };
-        this.draw();
-    }
-}
-
-const game = new Game();
 </script>
 </body>
 </html>
