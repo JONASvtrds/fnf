@@ -2,725 +2,1078 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoDash 2.2 Co-op Platformer</title>
+    <title>ValoWeb 3D - Full Models</title>
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.158.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            background-color: #0a0a0a;
-            color: white;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;700&display=swap');
+        body { margin: 0; overflow: hidden; font-family: 'Teko', sans-serif; background: #0f1923; color: white; user-select: none; }
         
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+        /* UI GERAL */
+        .fullscreen-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(15, 25, 35, 0.98); z-index: 50; transition: opacity 0.5s;
         }
-
-        canvas {
-            border: 3px solid #333;
-            background: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d); /* Sunset Gradient */
-            display: block;
-        }
-
-        /* UI Overlay */
-        #ui {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            border: 2px solid #00ffff;
-            min-width: 300px;
-            z-index: 10;
-        }
-
-        h1 { margin: 0 0 20px 0; font-style: italic; letter-spacing: 2px; text-shadow: 2px 2px #ff0055; }
         
         button {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 16px;
-            text-transform: uppercase;
-            transition: 0.2s;
+            background: #ff4655; color: white; border: none; padding: 15px 40px;
+            font-size: 24px; font-family: 'Teko'; cursor: pointer; text-transform: uppercase;
+            clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+            margin: 10px; transition: 0.2s; width: 300px;
+        }
+        button:hover { background: white; color: #ff4655; transform: scale(1.05); }
+        input { padding: 10px; width: 280px; margin: 10px; font-family: 'Teko'; font-size: 20px; text-align: center; }
+
+        /* SELEÇÃO DE AGENTE (In-Game) */
+        #agent-select { background: rgba(0,0,0,0.8); z-index: 60; display: none; }
+        .agent-card {
+            width: 200px; height: 300px; border: 2px solid #555; margin: 20px;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            cursor: pointer; transition: 0.3s; background-size: cover; background-position: center;
+            overflow: hidden; position: relative;
+        }
+        .agent-card:hover { border-color: #ff4655; transform: scale(1.1); }
+        .agent-name { background: rgba(0,0,0,0.8); width: 100%; text-align: center; font-size: 30px; padding: 10px 0; }
+        .agent-model-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+
+        /* HUD */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+            background: #00ff00; transform: translate(-50%, -50%); border-radius: 50%; border: 1px solid black;
+        }
+        #ammo-box { position: absolute; bottom: 20px; right: 20px; text-align: right; font-size: 40px; text-shadow: 2px 2px 0 #000; }
+        #hp-box { position: absolute; bottom: 20px; left: 20px; font-size: 40px; color: #00ff00; text-shadow: 2px 2px 0 #000; }
+        
+        /* HUD DE HABILIDADE */
+        #ability-hud {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            background: rgba(15, 25, 35, 0.8); padding: 15px 30px; border: 2px solid #ff4655;
+            display: none; pointer-events: auto; text-align: center; min-width: 200px;
+        }
+        #ability-hud button {
+            width: 120px; padding: 8px 15px; font-size: 18px; margin-top: 10px; pointer-events: all;
         }
 
-        .btn-green { background: #00ff88; color: #000; }
-        .btn-blue { background: #00ffff; color: #000; }
-        .btn-pink { background: #ff0055; color: #fff; }
-        .btn-dark { background: #333; color: #fff; border: 1px solid #555; }
-        
-        button:hover { transform: scale(1.02); filter: brightness(1.2); }
-        input { width: 100%; padding: 10px; box-sizing: border-box; margin-bottom: 10px; background: #222; border: 1px solid #444; color: white; text-align: center; }
+        /* LOJA */
+        #shop {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(16, 24, 35, 0.95); border: 2px solid #ff4655; padding: 30px;
+            display: none; z-index: 70; text-align: center;
+        }
+        .shop-item { display: inline-block; width: 180px; background: #2c3e50; margin: 10px; padding: 10px; cursor: pointer; border: 1px solid #555; }
+        .shop-item:hover { border-color: #00ff00; }
+
+        /* MENU DE CHEATS */
+        #cheat-menu {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(16, 24, 35, 0.98); border: 2px solid #00ff00; padding: 30px;
+            display: none; z-index: 80; text-align: center; min-width: 300px;
+        }
+        .cheat-item { margin: 15px 0; }
+        .cheat-item label { font-size: 22px; margin-left: 10px; }
 
         .hidden { display: none !important; }
-        .id-box { font-family: monospace; background: #222; padding: 10px; color: #00ffff; border: 1px dashed #555; margin: 10px 0; user-select: text; }
         
-        #hud {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            pointer-events: none;
-            font-size: 14px;
-            text-shadow: 1px 1px 2px black;
+        /* BOTÕES DO JOGO */
+        .game-buttons {
+            position: absolute; top: 20px; right: 20px; display: flex; gap: 10px; z-index: 30;
         }
+        .game-buttons button { width: 150px; padding: 10px; font-size: 18px; }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="gameCanvas" width="960" height="540"></canvas>
-    
-    <div id="hud" class="hidden">
-        <div>Controles: WASD ou Setas</div>
-        <div id="ping-display">Modo: Local</div>
+    <div id="main-menu" class="fullscreen-ui">
+        <h1 style="font-size: 80px; color: #ff4655; margin: 0;">VALOWEB 2.0</h1>
+        <p>VERSÃO P2P COM MODELOS 3D</p>
+        <button onclick="startGame(false)">SINGLE PLAYER</button>
+        <div style="height: 20px;"></div>
+        <button onclick="createHost()">CRIAR SALA</button>
+        <div>
+            <input type="text" id="room-id" placeholder="Cole o ID aqui">
+            <button onclick="joinGame()">ENTRAR</button>
+        </div>
+        <div id="status-msg" style="color: yellow; margin-top: 10px;"></div>
     </div>
 
-    <div id="ui">
-        <h1>NEON CO-OP</h1>
-        
-        <div id="main-menu">
-            <button class="btn-green" onclick="startSingle()">Single Player</button>
-            <div style="margin: 15px 0; border-top: 1px solid #444;"></div>
-            <button class="btn-blue" onclick="setupHost()">Criar Sala (Host)</button>
-            <button class="btn-pink" onclick="showJoin()">Entrar em Sala</button>
-            <button class="btn-dark" onclick="toggleFullScreen()">Tela Cheia</button>
-        </div>
-
-        <div id="host-menu" class="hidden">
-            <p>Seu ID de Sala:</p>
-            <div id="my-id" class="id-box">Gerando...</div>
-            <p>Envie para seu amigo.</p>
-            <div id="host-status" style="color: yellow; margin-bottom: 10px;">Aguardando P2...</div>
-            <button class="btn-dark" onclick="location.reload()">Cancelar</button>
-        </div>
-
-        <div id="join-menu" class="hidden">
-            <input type="text" id="remoteId" placeholder="Cole o ID do Host aqui">
-            <button class="btn-pink" onclick="joinRoom()">Conectar</button>
-            <button class="btn-dark" onclick="location.reload()">Voltar</button>
-        </div>
-        
-        <div id="game-over" class="hidden">
-            <h2 style="color: #ff0055;">VOCÊ MORREU</h2>
-            <p>Pressione R para reiniciar</p>
-            <button class="btn-green" onclick="resetGame()">Tentar Novamente</button>
+    <div id="agent-select" class="fullscreen-ui">
+        <h2>ESCOLHA SEU AGENTE</h2>
+        <div style="display: flex;">
+            <div class="agent-card" onclick="pickAgent(1)">
+                <div id="jett-model" class="agent-model-container"></div>
+                <div class="agent-name">JETT (Dash)</div>
+            </div>
+            <div class="agent-card" onclick="pickAgent(2)">
+                <div id="sage-model" class="agent-model-container"></div>
+                <div class="agent-name">SAGE (Cura)</div>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-    // --- ENGINE E CONFIGURAÇÕES ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    <div id="hud">
+        <div id="crosshair"></div>
+        <div id="hp-box">HP: 100</div>
+        <div id="ammo-box">
+            <span id="weapon-name">CLASSIC</span><br>
+            <span id="ammo-count">12 / ∞</span>
+        </div>
+        
+        <!-- HUD de Habilidade -->
+        <div id="ability-hud">
+            <div id="ability-name"></div>
+            <button onclick="useAbility()">ATIVAR (E)</button>
+            <div id="ability-cooldown" style="margin-top: 5px; color: #00ff00;"></div>
+        </div>
+    </div>
 
-    // Constantes de Física (Platformer Feel)
-    const GRAVITY = 0.5;
-    const FRICTION = 0.8;
-    const MOVE_SPEED = 0.8;
-    const MAX_SPEED = 6;
-    const JUMP_FORCE = -10;
-    
-    // Estado do Jogo
-    let gameState = 'MENU'; // MENU, PLAYING, GAMEOVER
-    let isMultiplayer = false;
-    let isHost = false;
-    let myId = 1; // 1 = Host/Single, 2 = Client
-    
-    // Networking
-    let peer, conn;
-    
-    // Inputs
-    const keys = {
-        left: false, right: false, up: false, r: false
-    };
+    <!-- Botões do Jogo -->
+    <div class="game-buttons">
+        <button onclick="toggleCheatMenu()">CHEATS (F1)</button>
+        <button onclick="toggleShop()">LOJA (B)</button>
+    </div>
 
-    // Objetos
-    let players = [];
-    let mapBlocks = []; // Plataformas, Paredes
-    let hazards = [];   // Espinhos, Serras
-    let mechanics = []; // Botões, Portões
-    let particles = [];
-    
-    let camera = { x: 0, y: 0 };
+    <!-- Loja -->
+    <div id="shop">
+        <h2>MERCADO (B) - $<span id="money">800</span></h2>
+        <div class="shop-item" onclick="buyWeapon('pistol')">
+            <h3>CLASSIC</h3><p>$0</p>
+        </div>
+        <div class="shop-item" onclick="buyWeapon('rifle')">
+            <h3>VANDAL</h3><p>$2900</p>
+        </div>
+        <div class="shop-item" onclick="buyWeapon('sniper')">
+            <h3>OPERATOR</h3><p>$4700</p>
+        </div>
+        <br><br>
+        <button onclick="toggleShop()" style="width: 150px; padding: 5px;">FECHAR</button>
+    </div>
 
-    // --- CLASSES ---
+    <!-- Menu de Cheats -->
+    <div id="cheat-menu">
+        <h2 style="color: #00ff00;">MENU DE CHEATS</h2>
+        <p style="color: #ff4655;">APENAS SINGLE PLAYER</p>
+        
+        <div class="cheat-item">
+            <input type="checkbox" id="cheat-infinite-money" onchange="toggleCheat('money')">
+            <label for="cheat-infinite-money">DINHEIRO INFINITO</label>
+        </div>
+        
+        <div class="cheat-item">
+            <input type="checkbox" id="cheat-infinite-hp" onchange="toggleCheat('hp')">
+            <label for="cheat-infinite-hp">VIDA INFINITA</label>
+        </div>
+        
+        <div class="cheat-item">
+            <input type="checkbox" id="cheat-infinite-ammo" onchange="toggleCheat('ammo')">
+            <label for="cheat-infinite-ammo">MUNIÇÃO INFINITA</label>
+        </div>
+        
+        <div class="cheat-item">
+            <input type="checkbox" id="cheat-no-recoil" onchange="toggleCheat('recoil')">
+            <label for="cheat-no-recoil">SEM RECOIL</label>
+        </div>
+        
+        <br>
+        <button onclick="toggleCheatMenu()">FECHAR</button>
+    </div>
 
-    class Player {
-        constructor(id, color, startX, startY) {
-            this.id = id;
-            this.color = color;
-            this.x = startX;
-            this.y = startY;
-            this.w = 30;
-            this.h = 30;
-            this.vx = 0;
-            this.vy = 0;
-            this.onGround = false;
-            this.dead = false;
-            this.facingRight = true;
-        }
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        update() {
-            if (this.dead) return;
+        // --- VARIÁVEIS DO SISTEMA ---
+        let camera, scene, renderer, controls;
+        let objects = []; // Colisores
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let prevTime = performance.now();
+        
+        // Multiplayer
+        let peer, conn;
+        let isMultiplayer = false;
+        let isHost = false;
+        let remotePlayer; // Mesh do inimigo
 
-            // Física Horizontal
-            this.x += this.vx;
-            this.vx *= FRICTION;
+        // Estado do Jogo
+        let gameState = 'MENU'; // MENU, AGENT_SELECT, PLAYING
+        let playerStats = { hp: 100, money: 800, agent: 0 };
+        let currentWeapon = 'pistol';
+        let weaponGroup; // O grupo 3D que contem braços e arma
+        let recoilForce = 0;
+        
+        // Definição das Armas
+        const WEAPONS = {
+            'pistol': { name: "CLASSIC", dmg: 25, rate: 400, mag: 12, cost: 0, recoil: 0.05 },
+            'rifle':  { name: "VANDAL",  dmg: 40, rate: 150, mag: 25, cost: 2900, recoil: 0.1 },
+            'sniper': { name: "OPERATOR",dmg: 150, rate: 1200, mag: 5, cost: 4700, recoil: 0.3 }
+        };
+        let ammo = 12;
+        let lastShot = 0;
+        
+        // Sistema de IAs
+        let bots = [];
+        let botMeshes = [];
+        
+        // Sistema de Habilidade
+        let abilityCooldown = 0;
+        let abilityActive = false;
+        
+        // Sistema de Cheats
+        let cheats = {
+            infiniteMoney: false,
+            infiniteHP: false,
+            infiniteAmmo: false,
+            noRecoil: false
+        };
+        
+        // Sistema de Áudio
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let gunSounds = {};
 
-            // Física Vertical
-            this.y += this.vy;
-            this.vy += GRAVITY;
+        // --- INICIALIZAÇÃO GRAFICA ---
+        init();
+        animate();
+        initAgentModels();
+        initAudio();
 
-            // Limites do Mundo (Morte se cair)
-            if (this.y > 800) this.die();
+        function init() {
+            // Cena e Câmera
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 0, 500);
 
-            // Colisão com Blocos Sólidos
-            this.onGround = false;
-            mapBlocks.forEach(block => {
-                const col = checkAABB(this, block);
-                if (col) {
-                    // Resolução de colisão simples
-                    const dx = (this.x + this.w/2) - (block.x + block.w/2);
-                    const dy = (this.y + this.h/2) - (block.y + block.h/2);
-                    const width = (this.w + block.w) / 2;
-                    const height = (this.h + block.h) / 2;
-                    const crossWidth = width * dy;
-                    const crossHeight = height * dx;
-
-                    if (Math.abs(dx) <= width && Math.abs(dy) <= height) {
-                        if (crossWidth > crossHeight) {
-                            if (crossWidth > -crossHeight) { // Colisão em Baixo (cabeça batendo)
-                                this.y = block.y + block.h;
-                                this.vy = 0;
-                            } else { // Colisão a Esquerda
-                                this.x = block.x - this.w;
-                                this.vx = 0;
-                            }
-                        } else {
-                            if (crossWidth > -crossHeight) { // Colisão a Direita
-                                this.x = block.x + block.w;
-                                this.vx = 0;
-                            } else { // Colisão em Cima (Chão)
-                                this.y = block.y - this.h;
-                                this.vy = 0;
-                                this.onGround = true;
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Colisão com Perigos (Serras/Espinhos)
-            hazards.forEach(h => {
-                if (checkCollision(this, h)) this.die();
-            });
-
-            // Colisão com Mecânicas (Portões Fechados matam se bater de frente, ou bloqueiam)
-            mechanics.forEach(m => {
-                if (m.type === 'gate' && m.active && checkCollision(this, m)) {
-                    // Tratando portão como parede sólida
-                    const dx = this.x - m.x;
-                    if (Math.abs(dx) < 30) { 
-                        if (this.x < m.x) this.x = m.x - this.w;
-                        else this.x = m.x + m.w;
-                        this.vx = 0;
-                    }
-                }
-            });
-        }
-
-        die() {
-            if (this.dead) return;
-            this.dead = true;
-            createExplosion(this.x, this.y, this.color);
-            if (isHost || !isMultiplayer) setTimeout(triggerGameOver, 500);
-        }
-
-        draw() {
-            if (this.dead) return;
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.w, this.h);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
-            // Olho (para ver direção)
-            ctx.fillStyle = "white";
-            let eyeX = this.facingRight ? this.x + 20 : this.x + 5;
-            ctx.fillRect(eyeX - camera.x, this.y + 5 - camera.y, 8, 8);
+            // Renderizador
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.body.appendChild(renderer.domElement);
+
+            // Luzes
+            const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.camera.left = -100; sun.shadow.camera.right = 100;
+            sun.shadow.camera.top = 100; sun.shadow.camera.bottom = -100;
+            scene.add(sun);
+
+            // Controles
+            controls = new PointerLockControls(camera, document.body);
             
-            // ID
-            ctx.fillStyle = "white";
-            ctx.font = "10px Arial";
-            ctx.fillText(`P${this.id}`, this.x - camera.x + 10, this.y - camera.y - 5);
-        }
-    }
+            // Eventos de Teclado
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            document.addEventListener('mousedown', shoot);
+            
+            // Setup Inicial da Arma
+            weaponGroup = new THREE.Group();
+            camera.add(weaponGroup);
+            scene.add(camera);
 
-    // --- SISTEMA DE MAPA ---
-
-    function generateLevel() {
-        mapBlocks = [];
-        hazards = [];
-        mechanics = [];
-        
-        // Função auxiliar para criar blocos
-        const addBlock = (x, y, w, h) => mapBlocks.push({x, y, w, h, color: '#333'});
-        const addSpike = (x, y) => hazards.push({x, y: y+10, w: 30, h: 20, type: 'spike'});
-        const addSaw = (x, y, range) => hazards.push({x, y, w: 40, h: 40, type: 'saw', cx: x, cy: y, angle: 0, range});
-        
-        // CHUNK 1: Início Seguro e Pulo Básico
-        addBlock(-100, 400, 600, 50); // Chão inicial
-        addBlock(600, 350, 100, 20);  // Plat 1
-        addBlock(800, 300, 100, 20);  // Plat 2
-        
-        // CHUNK 2: Introdução ao Perigo
-        addBlock(1000, 400, 500, 50); // Chão 2
-        addSpike(1200, 370);
-        addSpike(1300, 370);
-        
-        // CHUNK 3: O Puzzle Co-op (Portão e Botão)
-        // O botão fica em cima, o portão embaixo
-        addBlock(1600, 400, 800, 50); // Chão longo
-        
-        // Plataforma alta para o botão
-        addBlock(1700, 250, 100, 20); 
-        
-        // O Botão (P1 precisa subir aqui)
-        mechanics.push({
-            x: 1730, y: 240, w: 40, h: 10, 
-            type: 'button', 
-            id: 1, 
-            pressed: false,
-            color: '#ffd700'
-        });
-
-        // O Portão (Bloqueia o caminho embaixo)
-        mechanics.push({
-            x: 2000, y: 300, w: 20, h: 100,
-            type: 'gate',
-            linkId: 1, // Linkado ao botão 1
-            active: true, // Começa fechado
-            color: '#00ffff'
-        });
-
-        // Serra Móvel depois do portão
-        addSaw(2200, 360, 100);
-
-        // CHUNK 4: Parkour Conjunto
-        addBlock(2500, 400, 200, 50);
-        addBlock(2800, 300, 50, 200); // Parede para pular
-        addBlock(3000, 400, 500, 50);
-        
-        // Final
-        addBlock(3600, 400, 200, 50);
-        // Bandeira/Fim (Simulado por um bloco verde)
-        mapBlocks.push({x: 3700, y: 300, w: 20, h: 100, color: '#00ff00', win: true});
-    }
-
-    // --- GAME LOOP ---
-
-    function initGame() {
-        players = [
-            new Player(1, '#00ffff', 50, 300),
-            new Player(2, '#ff0055', 100, 300)
-        ];
-        
-        if (!isMultiplayer) {
-            // No single player, o Player 2 fica "dormindo" ou é removido, 
-            // mas para testar as mecânicas de botão, vou deixar ele controlável 
-            // com teclas diferentes ou simplesmente remove-lo e mudar o mapa.
-            // Para simplificar: Singleplayer joga sozinho, botão é "toggle" (aperta e fica).
-            players.pop(); 
+            createMap();
         }
 
-        generateLevel();
-        gameState = 'PLAYING';
-        document.getElementById('ui').classList.add('hidden');
-        document.getElementById('hud').classList.remove('hidden');
-        requestAnimationFrame(loop);
-    }
-
-    function loop() {
-        if (gameState !== 'PLAYING') return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // 1. Processar Inputs (Host ou Local)
-        processInputs();
-
-        // 2. Física e Lógica (Apenas HOST roda lógica pesada)
-        if (isHost || !isMultiplayer) {
-            updatePhysics();
-            updateMechanics();
-            broadcastState();
-        }
-
-        // 3. Atualizar Câmera (Interpolação para suavidade)
-        // Câmera segue o ponto médio entre os jogadores vivos
-        let targetX = 0, targetY = 0, count = 0;
-        players.forEach(p => {
-            if (!p.dead) {
-                targetX += p.x;
-                targetY += p.y;
-                count++;
-            }
-        });
-        if (count > 0) {
-            targetX /= count;
-            targetY /= count;
-            // Centraliza
-            targetX -= canvas.width / 2;
-            targetY -= canvas.height / 2;
-        }
-        // Smooth camera
-        camera.x += (targetX - camera.x) * 0.1;
-        // Clamp Y (não deixa câmera subir/descer demais)
-        camera.y = Math.max(0, Math.min(targetY, 200)); 
-
-        // 4. Renderizar
-        drawWorld();
-
-        requestAnimationFrame(loop);
-    }
-
-    function processInputs() {
-        // Se Single ou Host: Aplica input direto no P1
-        // Se Client: Envia input para Host, Host aplica no P2
-        
-        let activePlayer = (myId === 1) ? players[0] : players[1];
-        if (!activePlayer || activePlayer.dead) return;
-
-        // Movimento Horizontal
-        if (keys.left) { activePlayer.vx -= MOVE_SPEED; activePlayer.facingRight = false; }
-        if (keys.right) { activePlayer.vx += MOVE_SPEED; activePlayer.facingRight = true; }
-        
-        // Limite de Velocidade
-        if (activePlayer.vx > MAX_SPEED) activePlayer.vx = MAX_SPEED;
-        if (activePlayer.vx < -MAX_SPEED) activePlayer.vx = -MAX_SPEED;
-
-        // Pulo
-        if (keys.up && activePlayer.onGround) {
-            activePlayer.vy = JUMP_FORCE;
-            activePlayer.onGround = false;
-        }
-
-        // Enviar input via rede se for cliente
-        if (isMultiplayer && !isHost) {
-            conn.send({ type: 'INPUT', keys: keys });
-        }
-    }
-
-    function updatePhysics() {
-        players.forEach(p => p.update());
-        
-        // Atualizar Serras Móveis
-        hazards.forEach(h => {
-            if (h.type === 'saw') {
-                h.angle += 0.2;
-                // Movimento de vai e vem
-                h.x = h.cx + Math.sin(Date.now() / 500) * h.range;
-            }
-        });
-    }
-
-    function updateMechanics() {
-        // Lógica dos Botões e Portões
-        mechanics.forEach(mech => {
-            if (mech.type === 'button') {
-                let pressed = false;
-                // Verifica se ALGUM player está em cima do botão
-                players.forEach(p => {
-                    if (!p.dead && checkAABB(p, mech)) pressed = true;
-                });
+        // --- INICIALIZAR MODELOS DOS AGENTES NA SELEÇÃO ---
+        function initAgentModels() {
+            // Renderizadores para os modelos na seleção
+            const jettRenderer = new THREE.WebGLRenderer({ alpha: true });
+            jettRenderer.setSize(200, 300);
+            document.getElementById('jett-model').appendChild(jettRenderer.domElement);
+            
+            const sageRenderer = new THREE.WebGLRenderer({ alpha: true });
+            sageRenderer.setSize(200, 300);
+            document.getElementById('sage-model').appendChild(sageRenderer.domElement);
+            
+            // Cena e câmera para Jett
+            const jettScene = new THREE.Scene();
+            const jettCamera = new THREE.PerspectiveCamera(45, 200/300, 0.1, 1000);
+            jettCamera.position.set(0, 0, 5);
+            
+            // Modelo Jett (estilizado)
+            const jettBody = new THREE.Mesh(
+                new THREE.CapsuleGeometry(0.8, 2, 4, 8),
+                new THREE.MeshStandardMaterial({ color: 0x4a4a4a })
+            );
+            jettBody.position.y = 0;
+            
+            const jettHair = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 0.5, 0.8),
+                new THREE.MeshStandardMaterial({ color: 0x000000 })
+            );
+            jettHair.position.set(0, 1.2, 0);
+            
+            const jettFace = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0xffccaa })
+            );
+            jettFace.position.set(0, 0.7, 0.5);
+            
+            const jettKnife = new THREE.Mesh(
+                new THREE.ConeGeometry(0.1, 1, 4),
+                new THREE.MeshStandardMaterial({ color: 0xaaaaaa })
+            );
+            jettKnife.rotation.z = Math.PI;
+            jettKnife.position.set(0.8, -0.5, 0);
+            
+            jettScene.add(jettBody, jettHair, jettFace, jettKnife);
+            jettScene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            
+            // Cena e câmera para Sage
+            const sageScene = new THREE.Scene();
+            const sageCamera = new THREE.PerspectiveCamera(45, 200/300, 0.1, 1000);
+            sageCamera.position.set(0, 0, 5);
+            
+            // Modelo Sage (estilizado)
+            const sageBody = new THREE.Mesh(
+                new THREE.CapsuleGeometry(0.8, 2, 4, 8),
+                new THREE.MeshStandardMaterial({ color: 0x00aa00 })
+            );
+            sageBody.position.y = 0;
+            
+            const sageHair = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 0.5, 0.8),
+                new THREE.MeshStandardMaterial({ color: 0xffffff })
+            );
+            sageHair.position.set(0, 1.2, 0);
+            
+            const sageFace = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0xffccaa })
+            );
+            sageFace.position.set(0, 0.7, 0.5);
+            
+            const sageOrb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.4, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0x00ffff, transparent: true, opacity: 0.7 })
+            );
+            sageOrb.position.set(-0.8, 0, 0);
+            
+            sageScene.add(sageBody, sageHair, sageFace, sageOrb);
+            sageScene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            
+            // Animar os modelos
+            function animateAgentModels() {
+                requestAnimationFrame(animateAgentModels);
                 
-                // No singleplayer, botão é "sticky" (aperta uma vez e fica)
-                if (!isMultiplayer && pressed) mech.pressed = true;
-                else if (isMultiplayer) mech.pressed = pressed; // No multi precisa segurar
+                jettCamera.lookAt(0, 0, 0);
+                sageCamera.lookAt(0, 0, 0);
+                
+                // Rotação suave
+                jettScene.rotation.y += 0.01;
+                sageScene.rotation.y += 0.01;
+                
+                // Flutuação do orb da Sage
+                sageOrb.position.y = Math.sin(Date.now() * 0.002) * 0.3;
+                
+                jettRenderer.render(jettScene, jettCamera);
+                sageRenderer.render(sageScene, sageCamera);
+            }
+            animateAgentModels();
+        }
+
+        // --- INICIALIZAR SONS ---
+        function initAudio() {
+            // Criar sons de tiro básicos
+            function createGunSound(frequency, duration) {
+                return function() {
+                    if (audioContext.state === 'suspended') {
+                        audioContext.resume();
+                    }
+                    
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                    oscillator.type = 'sawtooth';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+                    
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + duration);
+                };
             }
             
-            if (mech.type === 'gate') {
-                // Acha o botão correspondente
-                const btn = mechanics.find(m => m.type === 'button' && m.id === mech.linkId);
-                if (btn) {
-                    mech.active = !btn.pressed; // Se botão pressionado, portão desativa (abre)
-                }
+            gunSounds.pistol = createGunSound(800, 0.1);
+            gunSounds.rifle = createGunSound(600, 0.15);
+            gunSounds.sniper = createGunSound(300, 0.3);
+        }
+
+        // --- GERAÇÃO DE MAPA E OBJETOS 3D ---
+        function createMap() {
+            // 1. Chão Gigante
+            const floorGeo = new THREE.PlaneGeometry(400, 400);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // 2. Paredes de Limite
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x34495e });
+            const wallHeight = 50;
+            const wallGeo = new THREE.BoxGeometry(400, wallHeight, 10);
+            
+            createWall(0, wallHeight/2, -200, 400, wallHeight, 10, wallMat);
+            createWall(0, wallHeight/2, 200, 400, wallHeight, 10, wallMat);
+            createWall(-200, wallHeight/2, 0, 10, wallHeight, 400, wallMat);
+            createWall(200, wallHeight/2, 0, 10, wallHeight, 400, wallMat);
+
+            // 3. Elementos do Mapa
+            for(let i=0; i<20; i++) {
+                let s = 10 + Math.random() * 20;
+                let x = (Math.random() - 0.5) * 300;
+                let z = (Math.random() - 0.5) * 300;
+                
+                if(Math.abs(x) < 20 && Math.abs(z) < 20) continue; 
+                
+                const box = new THREE.Mesh(
+                    new THREE.BoxGeometry(s, s, s), 
+                    new THREE.MeshStandardMaterial({ color: Math.random() > 0.5 ? 0xff4655 : 0x00ffff })
+                );
+                box.position.set(x, s/2, z);
+                box.castShadow = true;
+                box.receiveShadow = true;
+                scene.add(box);
+                objects.push(box);
             }
-        });
-    }
+        }
 
-    function drawWorld() {
-        // Fundo Parallax simples
-        ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.05)";
-        for(let i=0; i<10; i++) ctx.fillRect((i*200 - camera.x*0.5)%1000, 100, 50, 500);
-        ctx.restore();
+        function createWall(x, y, z, w, h, d, mat) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            mesh.position.set(x, y, z);
+            mesh.receiveShadow = true;
+            mesh.castShadow = true;
+            scene.add(mesh);
+            objects.push(mesh);
+        }
 
-        // Desenhar Blocos
-        mapBlocks.forEach(b => {
-            ctx.fillStyle = b.color;
-            ctx.fillRect(b.x - camera.x, b.y - camera.y, b.w, b.h);
-            // Borda Neon
-            ctx.strokeStyle = "#444";
-            ctx.strokeRect(b.x - camera.x, b.y - camera.y, b.w, b.h);
-        });
+        // --- SISTEMA DE BOTS (IA) ---
+        function createBots(count) {
+            for(let i = 0; i < count; i++) {
+                const bot = {
+                    mesh: new THREE.Mesh(
+                        new THREE.CapsuleGeometry(1.5, 4, 4, 8),
+                        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+                    ),
+                    hp: 100,
+                    targetPos: new THREE.Vector3(
+                        (Math.random() - 0.5) * 200,
+                        8,
+                        (Math.random() - 0.5) * 200
+                    ),
+                    state: 'patrol', // patrol, chase, attack
+                    lastShot: 0,
+                    cooldown: 1000 + Math.random() * 1000
+                };
+                
+                bot.mesh.position.copy(bot.targetPos);
+                bot.mesh.userData.isBot = true;
+                bot.mesh.userData.hp = 100;
+                scene.add(bot.mesh);
+                botMeshes.push(bot.mesh);
+                bots.push(bot);
+            }
+        }
 
-        // Desenhar Mecânicas (Botões/Portões)
-        mechanics.forEach(m => {
-            if (m.type === 'button') {
-                ctx.fillStyle = m.pressed ? '#555' : m.color;
-                let h = m.pressed ? m.h / 2 : m.h; // Esmaga visualmente
-                let y = m.pressed ? m.y + m.h/2 : m.y;
-                ctx.fillRect(m.x - camera.x, y - camera.y, m.w, h);
-            } else if (m.type === 'gate') {
-                if (m.active) {
-                    ctx.fillStyle = m.color;
-                    ctx.fillRect(m.x - camera.x, m.y - camera.y, m.w, m.h);
-                    // Brilho no portão
-                    ctx.shadowColor = m.color;
-                    ctx.shadowBlur = 10;
-                    ctx.fillRect(m.x - camera.x + 5, m.y - camera.y + 5, m.w-10, m.h-10);
-                    ctx.shadowBlur = 0;
+        function updateBots(delta) {
+            bots.forEach(bot => {
+                const playerPos = camera.position.clone();
+                const botPos = bot.mesh.position;
+                const distance = playerPos.distanceTo(botPos);
+                
+                // Lógica de estados
+                if (distance < 30) {
+                    bot.state = 'chase';
+                    if (distance < 15) {
+                        bot.state = 'attack';
+                    }
                 } else {
-                    // Portão aberto (fantasma)
-                    ctx.strokeStyle = "rgba(0, 255, 255, 0.2)";
-                    ctx.strokeRect(m.x - camera.x, m.y - camera.y, m.w, m.h);
+                    bot.state = 'patrol';
                 }
-            }
-        });
-
-        // Desenhar Perigos
-        hazards.forEach(h => {
-            if (h.type === 'spike') {
-                ctx.fillStyle = "red";
-                ctx.beginPath();
-                ctx.moveTo(h.x - camera.x, h.y + h.h - camera.y);
-                ctx.lineTo(h.x + h.w/2 - camera.x, h.y - camera.y);
-                ctx.lineTo(h.x + h.w - camera.x, h.y + h.h - camera.y);
-                ctx.fill();
-            } else if (h.type === 'saw') {
-                ctx.save();
-                ctx.translate(h.x + h.w/2 - camera.x, h.y + h.h/2 - camera.y);
-                ctx.rotate(h.angle);
-                ctx.fillStyle = "#aaa";
-                ctx.beginPath();
-                ctx.arc(0, 0, 20, 0, Math.PI*2);
-                ctx.fill();
-                ctx.fillStyle = "red"; // Dentes da serra
-                for(let i=0; i<8; i++) {
-                    ctx.rotate(Math.PI/4);
-                    ctx.fillRect(15, -5, 10, 10);
+                
+                // Ações baseadas no estado
+                switch(bot.state) {
+                    case 'patrol':
+                        // Patrulha entre pontos
+                        if (botPos.distanceTo(bot.targetPos) < 5) {
+                            bot.targetPos.set(
+                                (Math.random() - 0.5) * 200,
+                                8,
+                                (Math.random() - 0.5) * 200
+                            );
+                        }
+                        break;
+                        
+                    case 'chase':
+                        // Persegue o jogador
+                        bot.targetPos.copy(playerPos);
+                        break;
+                        
+                    case 'attack':
+                        // Atira no jogador
+                        if (Date.now() - bot.lastShot > bot.cooldown) {
+                            botShoot(bot);
+                            bot.lastShot = Date.now();
+                        }
+                        break;
                 }
-                ctx.restore();
-            }
-        });
-
-        // Players
-        players.forEach(p => p.draw());
-
-        // Partículas (Explosão)
-        particles.forEach((p, index) => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life--;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x - camera.x, p.y - camera.y, p.size, p.size);
-            if(p.life <= 0) particles.splice(index, 1);
-        });
-    }
-
-    // --- UTILITÁRIOS ---
-
-    function checkCollision(player, obj) {
-        return (player.x < obj.x + obj.w &&
-                player.x + player.w > obj.x &&
-                player.y < obj.y + obj.h &&
-                player.y + player.h > obj.y);
-    }
-    
-    // AABB (Axis-Aligned Bounding Box) Genérico
-    function checkAABB(rect1, rect2) {
-        return (rect1.x < rect2.x + rect2.w &&
-                rect1.x + rect1.w > rect2.x &&
-                rect1.y < rect2.y + rect2.h &&
-                rect1.y + rect1.h > rect2.y);
-    }
-
-    function createExplosion(x, y, color) {
-        for(let i=0; i<20; i++) {
-            particles.push({
-                x: x + 15, y: y + 15,
-                vx: (Math.random() - 0.5) * 10,
-                vy: (Math.random() - 0.5) * 10,
-                life: 30,
-                color: color,
-                size: Math.random() * 5 + 2
+                
+                // Movimento do bot
+                const direction = new THREE.Vector3()
+                    .subVectors(bot.targetPos, botPos)
+                    .normalize();
+                
+                if (bot.state !== 'attack') {
+                    bot.mesh.position.add(direction.multiplyScalar(5 * delta));
+                }
+                
+                // Olha na direção do movimento
+                if (direction.length() > 0.1) {
+                    bot.mesh.lookAt(
+                        bot.mesh.position.x + direction.x,
+                        bot.mesh.position.y,
+                        bot.mesh.position.z + direction.z
+                    );
+                }
             });
         }
-    }
 
-    function triggerGameOver() {
-        if (gameState === 'GAMEOVER') return;
-        gameState = 'GAMEOVER';
-        document.getElementById('ui').classList.remove('hidden');
-        document.getElementById('main-menu').classList.add('hidden');
-        document.getElementById('game-over').classList.remove('hidden');
-        
-        if (isHost && isMultiplayer) conn.send({ type: 'GAMEOVER' });
-    }
-    
-    function resetGame() {
-        // Envia reset para client
-        if (isHost && isMultiplayer) conn.send({ type: 'RESET' });
-        initGame();
-    }
-
-    function toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-        }
-    }
-
-    // --- CONTROLE DE INPUTS ---
-    window.addEventListener('keydown', e => {
-        if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
-        if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
-        if (e.key === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = true;
-        if (e.key.toLowerCase() === 'r' && gameState === 'GAMEOVER') resetGame();
-    });
-
-    window.addEventListener('keyup', e => {
-        if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
-        if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
-        if (e.key === 'ArrowUp' || e.key === 'w' || e.code === 'Space') keys.up = false;
-    });
-
-    // --- MULTIPLAYER P2P (PEERJS) ---
-
-    function startSingle() {
-        isMultiplayer = false;
-        isHost = true;
-        initGame();
-    }
-
-    function setupHost() {
-        peer = new Peer();
-        document.getElementById('main-menu').classList.add('hidden');
-        document.getElementById('host-menu').classList.remove('hidden');
-        
-        peer.on('open', id => {
-            document.getElementById('my-id').innerText = id;
-            isHost = true;
-            myId = 1;
-        });
-
-        peer.on('connection', c => {
-            conn = c;
-            setupConn();
-            document.getElementById('host-status').innerText = "JOGADOR 2 CONECTADO! INICIANDO...";
-            document.getElementById('host-status').style.color = "#00ff00";
-            isMultiplayer = true;
-            setTimeout(initGame, 1000);
-        });
-    }
-
-    function showJoin() {
-        document.getElementById('main-menu').classList.add('hidden');
-        document.getElementById('join-menu').classList.remove('hidden');
-    }
-
-    function joinRoom() {
-        const destId = document.getElementById('remoteId').value;
-        peer = new Peer();
-        peer.on('open', id => {
-            conn = peer.connect(destId);
-            setupConn();
-            isHost = false;
-            myId = 2;
-        });
-    }
-
-    function setupConn() {
-        conn.on('data', data => {
-            // CLIENT LÓGICA
-            if (!isHost) {
-                if (data.type === 'UPDATE') {
-                    // Sincroniza posições
-                    players[0].x = data.p1.x; players[0].y = data.p1.y; players[0].dead = data.p1.dead;
-                    players[1].x = data.p2.x; players[1].y = data.p2.y; players[1].dead = data.p2.dead;
-                    // Sincroniza Mecânicas
-                    mechanics.forEach((m, i) => {
-                        if (data.mechs[i]) {
-                            m.active = data.mechs[i].a;
-                            m.pressed = data.mechs[i].p;
-                        }
-                    });
-                    // Sincroniza Perigos Móveis
-                    hazards.forEach((h, i) => {
-                       if (h.type === 'saw' && data.hazz[i]) {
-                           h.x = data.hazz[i].x;
-                           h.angle = data.hazz[i].a;
-                       } 
-                    });
+        function botShoot(bot) {
+            const ray = new THREE.Raycaster();
+            const botPos = bot.mesh.position.clone();
+            botPos.y += 2; // Altura dos "olhos" do bot
+            
+            const playerPos = camera.position.clone();
+            const direction = new THREE.Vector3()
+                .subVectors(playerPos, botPos)
+                .normalize();
+            
+            ray.set(botPos, direction);
+            const intersects = ray.intersectObjects([camera]);
+            
+            if (intersects.length > 0) {
+                // Acertou o jogador
+                if (!cheats.infiniteHP) {
+                    playerStats.hp -= 10;
+                    updateHUD();
                     
-                    if (gameState === 'MENU') {
-                        document.getElementById('ui').classList.add('hidden');
-                        document.getElementById('hud').classList.remove('hidden');
-                        generateLevel(); // Gera mapa localmente para renderizar
-                        gameState = 'PLAYING';
-                        requestAnimationFrame(loop);
+                    if (playerStats.hp <= 0) {
+                        gameOver();
                     }
                 }
-                if (data.type === 'GAMEOVER') triggerGameOver();
-                if (data.type === 'RESET') initGame();
+                
+                // Efeito visual de hit
+                const hitEffect = document.createElement('div');
+                hitEffect.style.cssText = `
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(255, 0, 0, 0.3); z-index: 100; pointer-events: none;
+                    animation: hitFlash 0.3s;
+                `;
+                document.body.appendChild(hitEffect);
+                setTimeout(() => hitEffect.remove(), 300);
+            }
+        }
+
+        // --- SISTEMA DE ARMAS 3D PROCEDURAL ---
+        function createWeaponModel(type) {
+            while(weaponGroup.children.length > 0){ 
+                weaponGroup.remove(weaponGroup.children[0]); 
+            }
+
+            const gunMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
+            const detailMat = new THREE.MeshStandardMaterial({ color: 0xff4655 });
+            const armMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+
+            const gunRoot = new THREE.Group();
+
+            if (type === 'pistol') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.4), gunMat);
+                const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.4), detailMat);
+                barrel.position.set(0, 0.05, -0.2);
+                gunRoot.add(body, barrel);
+                gunRoot.position.set(0.3, -0.3, -0.5);
+            } 
+            else if (type === 'rifle') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.6), gunMat);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6), gunMat);
+                barrel.rotation.x = Math.PI / 2;
+                barrel.position.set(0, 0.05, -0.5);
+                const mag = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.15), detailMat);
+                mag.position.set(0, -0.15, 0.1);
+                gunRoot.add(body, barrel, mag);
+                gunRoot.position.set(0.3, -0.3, -0.6);
+            }
+            else if (type === 'sniper') {
+                const body = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.2, 0.5), gunMat);
+                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), gunMat);
+                barrel.rotation.x = Math.PI / 2;
+                barrel.position.set(0, 0, -0.8);
+                const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.4), detailMat);
+                scope.rotation.x = Math.PI / 2;
+                scope.position.set(0, 0.15, -0.1);
+                gunRoot.add(body, barrel, scope);
+                gunRoot.position.set(0.3, -0.35, -0.7);
+            }
+
+            // Braços 3D
+            const rightArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5), armMat);
+            rightArm.rotation.z = -0.2;
+            rightArm.rotation.x = 1.2;
+            rightArm.position.set(0.2, -0.8, 0.5);
+            
+            const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5), armMat);
+            leftArm.rotation.z = 0.5;
+            leftArm.rotation.x = 1.0;
+            leftArm.position.set(-0.4, -0.8, 0.2);
+
+            gunRoot.add(rightArm, leftArm);
+            weaponGroup.add(gunRoot);
+        }
+
+        // --- LÓGICA DO JOGO ---
+        window.startGame = (multi) => {
+            isMultiplayer = multi;
+            document.getElementById('main-menu').classList.add('hidden');
+            
+            gameState = 'AGENT_SELECT';
+            document.getElementById('agent-select').style.display = 'flex';
+            
+            camera.position.set(0, 50, 0);
+            camera.lookAt(0, 0, 0);
+            
+            // Criar bots apenas no single player
+            if (!multi) {
+                createBots(5); // 5 bots
+            }
+        };
+
+        window.pickAgent = (id) => {
+            playerStats.agent = id;
+            document.getElementById('agent-select').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            
+            // Mostrar HUD de habilidade
+            const abilityHud = document.getElementById('ability-hud');
+            abilityHud.style.display = 'block';
+            
+            if (id === 1) {
+                document.getElementById('ability-name').innerHTML = 'JETT<br><span style="font-size: 16px;">DASH (E)</span>';
+                abilityHud.style.borderColor = '#4a4a4a';
+            } else {
+                document.getElementById('ability-name').innerHTML = 'SAGE<br><span style="font-size: 16px;">CURAR (E)</span>';
+                abilityHud.style.borderColor = '#00aa00';
             }
             
-            // HOST LÓGICA (Recebendo input do P2)
-            if (isHost && data.type === 'INPUT') {
-                // Atualiza o estado das teclas virtuais do P2
-                // Note: Precisaríamos guardar o estado das teclas do P2 separadamente
-                // Hack rápido: vamos aplicar velocidade direta baseada no input remoto
-                const p2 = players[1];
-                if (!p2.dead) {
-                    if (data.keys.left) { p2.vx -= MOVE_SPEED; p2.facingRight = false; }
-                    if (data.keys.right) { p2.vx += MOVE_SPEED; p2.facingRight = true; }
-                    if (data.keys.up && p2.onGround) { p2.vy = JUMP_FORCE; p2.onGround = false; }
+            gameState = 'PLAYING';
+            camera.position.set(0, 10, 50);
+            
+            createWeaponModel('pistol');
+            updateHUD();
+
+            controls.lock();
+        };
+
+        // Inputs de Movimento
+        function onKeyDown(event) {
+            switch(event.code) {
+                case 'KeyW': moveForward = true; break;
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyS': moveBackward = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'Space': jump(); break; // Pulo
+                case 'KeyB': toggleShop(); break;
+                case 'KeyE': useAbility(); break;
+                case 'KeyR': reload(); break;
+                case 'F1': toggleCheatMenu(); break;
+            }
+        }
+        
+        function onKeyUp(event) {
+            switch(event.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
+        }
+
+        // Sistema de Pulo
+        function jump() {
+            if (canJump && gameState === 'PLAYING') {
+                velocity.y = 15;
+                canJump = false;
+                
+                // Som de pulo
+                if (audioContext.state === 'suspended') audioContext.resume();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+        }
+
+        // Tiro
+        function shoot() {
+            if(gameState !== 'PLAYING' || !controls.isLocked) return;
+            const w = WEAPONS[currentWeapon];
+            
+            if(Date.now() - lastShot < w.rate) return;
+            if(ammo <= 0 && !cheats.infiniteAmmo) return;
+
+            lastShot = Date.now();
+            if (!cheats.infiniteAmmo) {
+                ammo--;
+            }
+            updateHUD();
+
+            // Tocar som da arma
+            if (gunSounds[currentWeapon]) {
+                gunSounds[currentWeapon]();
+            }
+
+            // Recoil (a menos que o cheat esteja ativo)
+            if (!cheats.noRecoil) {
+                recoilForce += 0.1;
+                weaponGroup.position.z += 0.2;
+                weaponGroup.rotation.x += w.recoil;
+            }
+
+            // Hitscan
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const intersects = ray.intersectObjects(scene.children);
+
+            for (let i=0; i < intersects.length; i++) {
+                const obj = intersects[i].object;
+                
+                // Verifica se é um bot
+                if (obj.userData.isBot) {
+                    obj.userData.hp -= w.dmg;
+                    
+                    if (obj.userData.hp <= 0) {
+                        // Remove bot
+                        scene.remove(obj);
+                        const index = botMeshes.indexOf(obj);
+                        if (index > -1) {
+                            botMeshes.splice(index, 1);
+                            bots.splice(index, 1);
+                        }
+                        
+                        // Recompensa por matar bot
+                        playerStats.money += 300;
+                        updateHUD();
+                    }
+                    
+                    // Efeito de hit no bot
+                    const hitMat = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+                    obj.material = hitMat;
+                    setTimeout(() => {
+                        obj.material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+                    }, 100);
+                    
+                    break;
+                }
+                
+                // Acertou parede
+                if (objects.includes(obj)) {
+                    createBulletHole(intersects[i].point, intersects[i].face.normal);
+                    break;
+                }
+                
+                // Multiplayer
+                if (obj.userData.isPlayer && isMultiplayer) {
+                    conn.send({type: 'HIT', dmg: w.dmg});
+                    break;
                 }
             }
-        });
-    }
+        }
 
-    function broadcastState() {
-        if (!conn) return;
+        function reload() {
+            ammo = WEAPONS[currentWeapon].mag;
+            updateHUD();
+        }
+
+        function createBulletHole(pos, normal) {
+            const geo = new THREE.CircleGeometry(0.2, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const hole = new THREE.Mesh(geo, mat);
+            hole.position.copy(pos);
+            hole.position.add(normal.multiplyScalar(0.01));
+            hole.lookAt(pos.clone().add(normal));
+            scene.add(hole);
+            setTimeout(() => scene.remove(hole), 5000);
+        }
+
+        // Habilidades
+        window.useAbility = () => {
+            if (abilityCooldown > 0 || abilityActive) return;
+            
+            if (playerStats.agent === 1) { // Jett Dash
+                velocity.add(controls.getDirection(new THREE.Vector3()).multiplyScalar(100));
+                abilityActive = true;
+                
+                // Efeito visual do dash
+                const dashEffect = new THREE.Mesh(
+                    new THREE.SphereGeometry(2, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.5 })
+                );
+                dashEffect.position.copy(camera.position);
+                scene.add(dashEffect);
+                setTimeout(() => scene.remove(dashEffect), 500);
+            } else { // Sage Heal
+                playerStats.hp = Math.min(100, playerStats.hp + 50);
+                updateHUD();
+                
+                // Efeito visual de cura
+                const healEffect = new THREE.Mesh(
+                    new THREE.SphereGeometry(3, 16, 16),
+                    new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3 })
+                );
+                healEffect.position.copy(camera.position);
+                scene.add(healEffect);
+                setTimeout(() => scene.remove(healEffect), 1000);
+            }
+            
+            abilityCooldown = 10; // 10 segundos de cooldown
+            updateAbilityCooldown();
+        };
+
+        function updateAbilityCooldown() {
+            if (abilityCooldown > 0) {
+                document.getElementById('ability-cooldown').textContent = `Cooldown: ${abilityCooldown}s`;
+                abilityCooldown--;
+                setTimeout(updateAbilityCooldown, 1000);
+            } else {
+                document.getElementById('ability-cooldown').textContent = 'Pronta!';
+                abilityActive = false;
+            }
+        }
+
+        // Loja
+        window.toggleShop = () => {
+            const shop = document.getElementById('shop');
+            if(shop.style.display === 'block') {
+                shop.style.display = 'none';
+                controls.lock();
+            } else {
+                shop.style.display = 'block';
+                controls.unlock();
+            }
+        };
+
+        window.buyWeapon = (type) => {
+            const w = WEAPONS[type];
+            if (cheats.infiniteMoney || playerStats.money >= w.cost) {
+                if (!cheats.infiniteMoney) {
+                    playerStats.money -= w.cost;
+                }
+                currentWeapon = type;
+                ammo = w.mag;
+                createWeaponModel(type);
+                updateHUD();
+                toggleShop();
+            }
+        };
+
+        function updateHUD() {
+            document.getElementById('hp-box').innerText = "HP: " + playerStats.hp;
+            document.getElementById('weapon-name').innerText = WEAPONS[currentWeapon].name;
+            document.getElementById('ammo-count').innerText = ammo + " / ∞";
+            document.getElementById('money').innerText = playerStats.money;
+        }
+
+        // Sistema de Cheats
+        window.toggleCheatMenu = () => {
+            if (isMultiplayer) {
+                alert("Cheats disponíveis apenas no Single Player!");
+                return;
+            }
+            
+            const menu = document.getElementById('cheat-menu');
+            if(menu.style.display === 'block') {
+                menu.style.display = 'none';
+                if (gameState === 'PLAYING') controls.lock();
+            } else {
+                menu.style.display = 'block';
+                controls.unlock();
+            }
+        };
+
+        window.toggleCheat = (type) => {
+            switch(type) {
+                case 'money':
+                    cheats.infiniteMoney = !cheats.infiniteMoney;
+                    if (cheats.infiniteMoney) playerStats.money = 99999;
+                    updateHUD();
+                    break;
+                case 'hp':
+                    cheats.infiniteHP = !cheats.infiniteHP;
+                    if (cheats.infiniteHP) playerStats.hp = 99999;
+                    updateHUD();
+                    break;
+                case 'ammo':
+                    cheats.infiniteAmmo = !cheats.infiniteAmmo;
+                    if (cheats.infiniteAmmo) ammo = 999;
+                    updateHUD();
+                    break;
+                case 'recoil':
+                    cheats.noRecoil = !cheats.noRecoil;
+                    break;
+            }
+        };
+
+        function gameOver() {
+            alert("GAME OVER!");
+            location.reload();
+        }
+
+        // --- MULTIPLAYER P2P ---
+        window.createHost = () => {
+            peer = new Peer();
+            document.getElementById('status-msg').innerText = "Gerando Sala...";
+            peer.on('open', id => {
+                document.getElementById('status-msg').innerHTML = "ID DA SALA: <br><span style='font-size:30px; color:white; background:black; padding:5px'>" + id + "</span><br>Mande para o amigo.";
+                isHost = true;
+            });
+            peer.on('connection', c => {
+                conn = c;
+                setupConnection();
+                startGame(true);
+            });
+        };
+
+        window.joinGame = () => {
+            const id = document.getElementById('room-id').value;
+            peer = new Peer();
+            peer.on('open', myId => {
+                conn = peer.connect(id);
+                setupConnection();
+                startGame(true);
+            });
+        };
+
+        function setupConnection() {
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+            const geo = new THREE.CapsuleGeometry(1.5, 4, 4, 8);
+            remotePlayer = new THREE.Mesh(geo, mat);
+            remotePlayer.position.set(0, -100, 0);
+            remotePlayer.userData.isPlayer = true;
+            scene.add(remotePlayer);
+
+            conn.on('data', data => {
+                if(data.type === 'MOVE') {
+                    remotePlayer.position.set(data.x, data.y, data.z);
+                }
+                if(data.type === 'HIT') {
+                    if (!cheats.infiniteHP) {
+                        playerStats.hp -= data.dmg;
+                        updateHUD();
+                        if(playerStats.hp <= 0) {
+                            gameOver();
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- LOOP PRINCIPAL ---
+        let canJump = true;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameState === 'PLAYING') {
+                const time = performance.now();
+                const delta = (time - prevTime) / 1000;
+                prevTime = time;
+
+                // Física de Movimento
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+                velocity.y -= 9.8 * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 400.0 * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 400.0 * delta;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+                controls.getObject().position.y += (velocity.y * delta);
+
+                // Colisão com o Chão
+                if (controls.getObject().position.y < 8) {
+                    velocity.y = 0;
+                    controls.getObject().position.y = 8;
+                    canJump = true;
+                }
+
+                // Animação da Arma
+                if (weaponGroup) {
+                    weaponGroup.position.z += (0 - weaponGroup.position.z) * 0.1;
+                    weaponGroup.rotation.x += (0 - weaponGroup.rotation.x) * 0.1;
+                    
+                    if(moveForward || moveBackward || moveLeft || moveRight) {
+                        weaponGroup.position.x = Math.sin(time * 0.01) * 0.02;
+                        weaponGroup.position.y = Math.cos(time * 0.02) * 0.02;
+                    }
+                }
+
+                // Atualizar Bots (single player)
+                if (!isMultiplayer) {
+                    updateBots(delta);
+                }
+
+                // Multiplayer
+                if (isMultiplayer && conn && conn.open) {
+                    const pos = controls.getObject().position;
+                    conn.send({type: 'MOVE', x: pos.x, y: pos.y, z: pos.z});
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.onresize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
         
-        // Host envia o estado do mundo para o client
-        // Otimização: Enviamos arrays simplificados
-        const mechState = mechanics.map(m => ({ a: m.active, p: m.pressed }));
-        const hazzState = hazards.map(h => h.type === 'saw' ? { x: h.x, a: h.angle } : null);
-
-        conn.send({
-            type: 'UPDATE',
-            p1: { x: players[0].x, y: players[0].y, dead: players[0].dead },
-            p2: { x: players[1].x, y: players[1].y, dead: players[1].dead },
-            mechs: mechState,
-            hazz: hazzState
-        });
-    }
-
-</script>
+        // CSS para animação de hit
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes hitFlash {
+                0% { opacity: 0.5; }
+                100% { opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
 </body>
 </html>
